@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caesar, Affine, Vigenere, Hill Cipher</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+    <style>
+        body {
+            padding-top: 20px;
+
+        }
+
+        .container {
+            height: 60%;
+            width: 60%;
+        }
+
+
+        .card {
+            margin-top: 20px;
+
+        }
+
+        .card-header h3 {
+            cursor: pointer;
+        }
+
+        #resultCard {
+            display: none;
+        }
+
+        #downloadLink {
+            display: none;
+        }
+
+        #alertBox {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 250px;
+            z-index: 1050;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+        }
+
+        .alert {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .alert.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .btn {
+            margin: 2px;
+            border-radius: 30px;
+            padding: 10px 20px;
+        }
+
+        .btn:hover {
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            transform: scale(1.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Thanh thông báo -->
+        <div id="alertBox" class="alert text-center" role="alert"></div>
+
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h3>Mã hóa và Giải mã</h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Chọn loại mã hóa -->
+                        <div class="form-group">
+                            <label for="encryptionType">Chọn loại mã hóa:</label>
+                            <select class="form-control" id="encryptionType" onchange="toggleEncryptionType()">
+                                <option value="classic">Mã hóa cổ điển</option>
+                                <option value="block">Mã hóa khối</option>
+                                <option value="rsa">Mã hóa RSA</option>
+                            </select>
+                        </div>
+
+                        <!-- Hiển thị phần mã hóa cổ điển -->
+                        <div id="classicEncryption" style="display: block;">
+                            <label for="cipherType">Chọn thuật toán mã hóa cổ điển:</label>
+                            <select class="form-control" id="cipherType" onchange="updateKeyInputs()">
+                                <option value="caesar">Caesar Cipher</option>
+                                <option value="affine">Affine Cipher</option>
+                                <option value="vigenere">Vigenere Cipher</option>
+                                <option value="hill">Hill Cipher</option>
+                            </select>
+                        </div>
+
+                        <!-- Hiển thị phần mã hóa khối -->
+                        <div id="blockEncryption" style="display: none;">
+                            <label for="blockCipherType">Chọn thuật toán mã hóa khối:</label>
+                            <select class="form-control" id="blockCipherType">
+                                <option value="des">DES Cipher</option>
+                                <option value="aes">AES Cipher</option>
+                            </select>
+                        </div>
+
+                        <div id="rsaEncryption" style="display: none;">
+                            <div class="form-group">
+                                <label for="rsaPublicKey">Khóa công khai RSA:</label>
+                                <input type="text" class="form-control" id="rsaPublicKey"
+                                    placeholder="Nhập khóa công khai RSA">
+                            </div>
+                            <div class="form-group">
+                                <label for="rsaPrivateKey">Khóa riêng tư RSA:</label>
+                                <input type="text" class="form-control" id="rsaPrivateKey"
+                                    placeholder="Nhập khóa riêng tư RSA">
+                            </div>
+                            <button class="btn btn-primary" onclick="generateRSAKeys()">Tạo khóa RSA</button>
+                        </div>
+
+                        <!-- Ô nhập bản rõ -->
+                        <div class="form-group">
+                            <label for="plaintext">Plaintext (Bản rõ):</label>
+                            <textarea class="form-control" id="plaintext" rows="3"
+                                placeholder="Nhập bản rõ..."></textarea>
+                        </div>
+
+                        <!-- Tải lên file bản rõ -->
+                        <div class="form-group">
+                            <label for="fileUploadPlain">Tải lên file bản rõ:</label>
+                            <input type="file" id="fileUploadPlain" class="form-control-file"
+                                onchange="loadFile('plaintext')">
+                        </div>
+                        <!-- Ô nhập khóa cho Caesar và Affine -->
+                        <div id="caesarAffineKey" class="form-group">
+                            <label for="shift">Không gian khóa K:</label>
+                            <input type="number" class="form-control" id="shift"
+                                placeholder="Nhập khóa K (cho Caesar và Affine)">
+                        </div>
+
+                        <!-- Ô nhập hai khóa cho Affine -->
+                        <div id="affineKeys" class="form-group" style="display: none;">
+                            <label for="affineA">Khóa a (Affine):</label>
+                            <input type="number" class="form-control" id="affineA" placeholder="Nhập khóa a">
+                            <label for="affineB">Khóa b (Affine):</label>
+                            <input type="number" class="form-control" id="affineB" placeholder="Nhập khóa b">
+                        </div>
+
+                        <!-- Ô nhập khóa cho Vigenere -->
+                        <div id="vigenereKey" class="form-group" style="display: none;">
+                            <label for="vigenere">Khóa Vigenere (chuỗi ký tự):</label>
+                            <input type="text" class="form-control" id="vigenere" placeholder="Nhập khóa cho Vigenere">
+                        </div>
+                        <!-- Ô nhập khóa cho DES và AES -->
+                        <div id="blockCipherKey" class="form-group" style="display: none;">
+                            <label for="blockKey">Nhập khóa cho DES/AES:</label>
+                            <input type="text" class="form-control" id="blockKey"
+                                placeholder="Nhập khóa cho DES hoặc AES">
+                        </div>
+
+                        <!-- Thêm trường nhập ma trận cho Hill Cipher -->
+                        <div id="hillKeyMatrix" style="display: none;">
+                            <label>Nhập ma trận khóa 2x2:</label>
+                            <div class="form-group">
+                                <label for="a11">a11:</label>
+                                <input type="number" class="form-control" id="a11" placeholder="Nhập a11">
+                            </div>
+                            <div class="form-group">
+                                <label for="a12">a12:</label>
+                                <input type="number" class="form-control" id="a12" placeholder="Nhập a12">
+                            </div>
+                            <div class="form-group">
+                                <label for="a21">a21:</label>
+                                <input type="number" class="form-control" id="a21" placeholder="Nhập a21">
+                            </div>
+                            <div class="form-group">
+                                <label for="a22">a22:</label>
+                                <input type="number" class="form-control" id="a22" placeholder="Nhập a22">
+                            </div>
+                        </div>
+
+
+                        <!-- Ô nhập bản mã -->
+                        <div class="form-group mt-4">
+                            <label for="ciphertext">Ciphertext (Bản mã):</label>
+                            <textarea class="form-control" id="ciphertext" rows="3"
+                                placeholder="Kết quả mã hóa/giải mã sẽ hiện ở đây..."></textarea>
+                        </div>
+
+
+                        <!-- Nút mã hóa và giải mã -->
+                        <div class="text-center">
+                            <button class="btn btn-success" onclick="process('encode')"><i class="fas fa-lock"></i> Mã
+                                hóa</button>
+                            <button class="btn btn-warning" onclick="process('decode')"><i class="fas fa-unlock"></i>
+                                Giải mã</button>
+                        </div>
+
+                        <!-- Kết quả hiển thị -->
+                        <div class="card mt-4" id="resultCard">
+                            <div class="card-header bg-info text-white">Kết quả</div>
+                            <div class="card-body">
+                                <p id="resultText"></p>
+                            </div>
+                        </div>
+
+                        <!-- Nút tải xuống file -->
+                        <div class="text-center mt-3">
+                            <a id="downloadLink" class="btn btn-info" download="result.txt">Tải xuống kết quả</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Hiển thị thông báo
+        function showAlert(message, type) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.textContent = message;
+            alertBox.className = `alert alert-${type} show`;
+            alertBox.style.display = 'block';
+
+            setTimeout(() => {
+                alertBox.classList.remove('show');
+                setTimeout(() => {
+                    alertBox.style.display = 'none';
+                }, 500);
+            }, 3000);
+        }
+        // Hàm chuyển đổi giữa Mã hóa cổ điển và Mã hóa khối
+        function toggleEncryptionType() {
+            const encryptionType = document.getElementById('encryptionType').value;
+            document.getElementById('classicEncryption').style.display = encryptionType === 'classic' ? 'block' : 'none';
+            document.getElementById('blockEncryption').style.display = encryptionType === 'block' ? 'block' : 'none';
+            document.getElementById('rsaEncryption').style.display = encryptionType === 'rsa' ? 'block' : 'none';
+            document.getElementById('blockCipherKey').style.display = encryptionType === 'block' ? 'block' : 'none';
+
+            updateKeyInputs();
+        }
+
+
+        // Cập nhật trường nhập khóa theo loại mã
+        function updateKeyInputs() {
+            const cipherType = document.getElementById("cipherType").value;
+            const encryptionType = document.getElementById("encryptionType").value;
+
+            // Các phần tử khóa cần điều chỉnh
+            const caesarAffineKey = document.getElementById("caesarAffineKey");
+            const affineKeys = document.getElementById("affineKeys");
+            const vigenereKey = document.getElementById("vigenereKey");
+            const hillKeyMatrix = document.getElementById("hillKeyMatrix");
+            const blockCipherKey = document.getElementById("blockCipherKey");
+            const rsaEncryption = document.getElementById("rsaEncryption");
+
+            // Ẩn tất cả các trường khóa
+            caesarAffineKey.style.display = 'none';
+            affineKeys.style.display = 'none';
+            vigenereKey.style.display = 'none';
+            hillKeyMatrix.style.display = 'none';
+            blockCipherKey.style.display = 'none';
+            rsaEncryption.style.display = 'none';
+
+            // Hiển thị trường khóa tương ứng
+            if (encryptionType === 'classic') {
+                document.getElementById("classicEncryption").style.display = 'block';
+                document.getElementById("blockEncryption").style.display = 'none';
+
+                switch (cipherType) {
+                    case 'caesar':
+                        caesarAffineKey.style.display = 'block';
+                        break;
+                    case 'affine':
+                        affineKeys.style.display = 'block';
+                        break;
+                    case 'vigenere':
+                        vigenereKey.style.display = 'block';
+                        break;
+                    case 'hill':
+                        hillKeyMatrix.style.display = 'block';
+                        break;
+                }
+            } else if (encryptionType === 'block') {
+                document.getElementById("classicEncryption").style.display = 'none';
+                document.getElementById("blockEncryption").style.display = 'block';
+                blockCipherKey.style.display = 'block';
+            } else if (encryptionType === 'rsa') {
+                document.getElementById("classicEncryption").style.display = 'none';
+                document.getElementById("blockEncryption").style.display = 'none';
+                rsaEncryption.style.display = 'block';
+            }
+        }
+
+
+
+        // Tải file và hiển thị nội dung trong textarea
+        function loadFile(target) {
+            const input = target === 'plaintext' ? document.getElementById('fileUploadPlain') : document.getElementById('fileUploadCipher');
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                document.getElementById(target).value = e.target.result;
+            };
+
+            reader.readAsText(file);
+        }
+
+        // Hàm tạo file để tải xuống
+        function createDownload(content) {
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const link = document.getElementById('downloadLink');
+            link.href = url;
+            link.style.display = 'block';
+        }
+
+        // Hàm kiểm tra tính nguyên tố cùng nhau của a và m
+        function gcd(a, b) {
+            while (b !== 0) {
+                [a, b] = [b, a % b];
+            }
+            return a;
+        }
+
+        // Hàm tìm nghịch đảo modulo của a
+        function modularInverse(a, m) {
+            let m0 = m, x0 = 0, x1 = 1;
+            if (m == 1) return 0;
+
+            while (a > 1) {
+                let q = Math.floor(a / m);
+                let t = m;
+                m = a % m, a = t;
+                t = x0;
+                x0 = x1 - q * x0;
+                x1 = t;
+            }
+            if (x1 < 0) x1 += m0;
+            return x1;
+        }
+
+        // Hàm Affine Cipher
+        function affineCipher(str, action, a, b) {
+            const m = 26;
+            const a_inv = modularInverse(a, m);
+
+            if (a_inv === null) {
+                console.error('Khóa a không có nghịch đảo modulo với m');
+                return '';
+            }
+
+            return str.toUpperCase().split('').map(char => {
+                let code = char.charCodeAt(0);
+                if (code >= 'A'.charCodeAt(0) && code <= 'Z'.charCodeAt(0)) {
+                    if (action === 'encode') {
+                        return String.fromCharCode(((a * (code - 'A'.charCodeAt(0)) + b) % m + m) % m + 'A'.charCodeAt(0));
+                    } else {
+                        return String.fromCharCode(((a_inv * ((code - 'A'.charCodeAt(0)) - b + m)) % m + m) % m + 'A'.charCodeAt(0));
+                    }
+                }
+                return char;// giữ nguyên các ký tự khác
+            }).join('');
+        }
+
+
+        // Hàm Vigenere Cipher
+        function vigenereCipher(str, action, key) {
+            const m = 26; // Bảng chữ cái A-Z (26 ký tự)
+            const keyUpper = key.toUpperCase();
+
+            return str.toUpperCase().split('').map((char, i) => {
+                let keyChar = keyUpper.charCodeAt(i % keyUpper.length) - 'A'.charCodeAt(0);
+                let code = char.charCodeAt(0);
+                if (code >= 'A'.charCodeAt(0) && code <= 'Z'.charCodeAt(0)) {
+                    if (action === 'encode') {
+                        return String.fromCharCode(((code - 'A'.charCodeAt(0) + keyChar) % m + m) % m + 'A'.charCodeAt(0));
+                    } else {
+                        return String.fromCharCode(((code - 'A'.charCodeAt(0) - keyChar + m) % m + m) % m + 'A'.charCodeAt(0));
+                    }
+                }
+                return char; // Giữ nguyên các ký tự khác
+            }).join('');
+        }
+
+
+        // Xử lý mã hóa/giải mã
+        // Hàm process tích hợp xử lý mã hóa/giải mã Hill Cipher và các phương pháp khác
+        function process(action) {
+            const encryptionType = document.getElementById("encryptionType").value;
+            let plaintext = document.getElementById("plaintext").value;
+            let result = '';
+
+            // Kiểm tra xem bản rõ có trống hay không
+            if (plaintext.trim() === '') {
+                showAlert('Vui lòng nhập bản rõ để mã hóa hoặc giải mã!', 'danger');
+                return;
+            }
+
+            try {
+                // Xử lý mã hóa cổ điển
+                if (encryptionType === 'classic') {
+                    const cipherType = document.getElementById("cipherType").value;
+
+                    if (cipherType === 'caesar') {
+                        let shift = parseInt(document.getElementById("shift").value);
+                        if (isNaN(shift)) {
+                            showAlert('Vui lòng nhập khóa K cho Caesar!', 'danger');
+                            return;
+                        }
+                        result = caesarCipher(plaintext, action === 'encode' ? shift : -shift);
+
+                    } else if (cipherType === 'affine') {
+                        let a = parseInt(document.getElementById("affineA").value);
+                        let b = parseInt(document.getElementById("affineB").value);
+                        if (isNaN(a) || isNaN(b)) {
+                            showAlert('Vui lòng nhập cả hai khóa a và b cho Affine!', 'danger');
+                            return;
+                        }
+                        result = affineCipher(plaintext, action, a, b);
+
+                    } else if (cipherType === 'vigenere') {
+                        let key = document.getElementById("vigenere").value;
+                        if (key.trim() === '') {
+                            showAlert('Vui lòng nhập khóa chuỗi cho Vigenere!', 'danger');
+                            return;
+                        }
+                        result = vigenereCipher(plaintext, action, key);
+
+                    } else if (cipherType === 'hill') {
+                        // Lấy giá trị ma trận từ giao diện
+                        const a11 = parseInt(document.getElementById("a11").value);
+                        const a12 = parseInt(document.getElementById("a12").value);
+                        const a21 = parseInt(document.getElementById("a21").value);
+                        const a22 = parseInt(document.getElementById("a22").value);
+
+                        if (isNaN(a11) || isNaN(a12) || isNaN(a21) || isNaN(a22)) {
+                            showAlert('Vui lòng nhập đầy đủ ma trận khóa!', 'danger');
+                            return;
+                        }
+
+                        const keyMatrix = [
+                            [a11, a12],
+                            [a21, a22]
+                        ];
+
+                        result = hillCipher(plaintext, action, keyMatrix);
+                    }
+
+                    // Xử lý mã hóa khối (DES, AES)
+                } else if (encryptionType === 'block') {
+                    const blockCipherType = document.getElementById("blockCipherType").value;
+                    const key = document.getElementById("blockKey").value;
+
+                    if (key.trim() === '') {
+                        showAlert('Vui lòng nhập khóa cho DES/AES!', 'danger');
+                        return;
+                    }
+
+                    if (blockCipherType === 'des') {
+                        result = desCipher(plaintext, action, key);
+                    } else if (blockCipherType === 'aes') {
+                        result = aesCipher(plaintext, action, key);
+                    }
+                } else if (encryptionType === 'rsa') {
+                    const publicKey = document.getElementById("rsaPublicKey").value;
+                    const privateKey = document.getElementById("rsaPrivateKey").value;
+
+                    if (publicKey.trim() === '' || privateKey.trim() === '') {
+                        showAlert('Vui lòng tạo hoặc nhập khóa RSA!', 'danger');
+                        return;
+                    }
+
+                    if (action === 'encode') {
+                        result = rsaEncrypt(plaintext, publicKey);
+                    } else {
+                        result = rsaDecrypt(plaintext, privateKey);
+                    }
+                }
+
+
+                // Hiển thị kết quả
+                showAlert(action === 'encode' ? 'Mã hóa thành công!' : 'Giải mã thành công!', 'success');
+                document.getElementById("ciphertext").value = result;
+                document.getElementById("resultText").textContent = result;
+                document.getElementById("resultCard").style.display = 'block';
+                createDownload(result);
+
+            } catch (error) {
+                showAlert('Có lỗi xảy ra trong quá trình xử lý!', 'danger');
+            }
+        }
+
+
+
+
+
+        function caesarCipher(str, shift) {
+            const m = 95; // Ký tự in được từ 32 đến 126 (tổng cộng 95 ký tự)
+            return str.split('').map(function (char) {
+                let code = char.charCodeAt(0);
+                if (code >= 32 && code <= 126) { // Chỉ mã hóa các ký tự in được
+                    return String.fromCharCode(((code - 32 + shift) % m + m) % m + 32);
+                }
+                return char; // Giữ nguyên các ký tự khác
+            }).join('');
+        }
+
+
+        // Hàm tính định thức của ma trận 2x2
+        function determinant(matrix) {
+            return (matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]) % 26;
+        }
+
+        function inverseMatrixMod(matrix, mod) {
+            let det = determinant(matrix);
+            let detInv = modInverse(det, mod);
+
+            if (detInv === null) {
+                console.error('Không tìm được nghịch đảo của định thức!');
+                return null;
+            }
+
+            let inverseMatrix = [
+                [matrix[1][1] * detInv % mod, -matrix[0][1] * detInv % mod],
+                [-matrix[1][0] * detInv % mod, matrix[0][0] * detInv % mod]
+            ];
+
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    inverseMatrix[i][j] = (inverseMatrix[i][j] + mod) % mod;
+                }
+            }
+
+            return inverseMatrix;
+        }
+
+        // Hàm tìm nghịch đảo modulo của một số a modulo m
+        function modInverse(a, m) {
+            let m0 = m, x0 = 0, x1 = 1;
+            if (m === 1) return 0;
+
+            while (a > 1) {
+                let q = Math.floor(a / m);
+                let t = m;
+                m = a % m, a = t;
+                t = x0;
+                x0 = x1 - q * x0;
+                x1 = t;
+            }
+            if (x1 < 0) x1 += m0;
+            return x1;
+        }
+        // Hàm Hill Cipher (Mã hóa/giải mã dựa trên action)
+        function hillCipher(text, action, keyMatrix) {
+            const mod = 26;
+            const blockSize = keyMatrix.length;
+
+            if (action === 'decode') {
+                keyMatrix = inverseMatrixMod(keyMatrix, mod);
+                if (keyMatrix === null) return '';
+            }
+
+            let paddedText = text.toUpperCase();
+            while (paddedText.length % blockSize !== 0) {
+                paddedText += 'X';  // Padding character
+            }
+
+            let blocks = [];
+            for (let i = 0; i < paddedText.length; i += blockSize) {
+                let block = [];
+                for (let j = 0; j < blockSize; j++) {
+                    let charCode = paddedText.charCodeAt(i + j);
+                    block.push(charCode - 'A'.charCodeAt(0));
+                }
+                blocks.push(block);
+            }
+
+            let result = [];
+            for (let block of blocks) {
+                let newBlock = [];
+                for (let i = 0; i < blockSize; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < blockSize; j++) {
+                        sum += (keyMatrix[i][j] * block[j]) % mod;
+                    }
+                    newBlock.push(sum % mod);
+                }
+                result.push(...newBlock);
+            }
+
+            return result.map(code => String.fromCharCode(code + 'A'.charCodeAt(0))).join('');
+        }
+
+
+        // Hàm xử lý mã hóa/giải mã Hill Cipher từ người dùng
+        function processHillCipher(action) {
+            const keyMatrix = [
+                [parseInt(prompt("Nhập phần tử a11:")), parseInt(prompt("Nhập phần tử a12:"))],
+                [parseInt(prompt("Nhập phần tử a21:")), parseInt(prompt("Nhập phần tử a22:"))]
+            ];
+
+            const plaintext = document.getElementById("plaintext").value;
+            const result = hillCipher(plaintext, action, keyMatrix);
+
+            document.getElementById("ciphertext").value = result;
+        }
+
+        // Hàm DES Cipher
+        function desCipher(str, action, key) {
+            if (action === 'encode') {
+                return CryptoJS.DES.encrypt(str, key).toString();
+            } else {
+                const bytes = CryptoJS.DES.decrypt(str, key);
+                return bytes.toString(CryptoJS.enc.Utf8);
+            }
+        }
+
+        // Hàm AES Cipher
+        function aesCipher(str, action, key) {
+            if (action === 'encode') {
+                return CryptoJS.AES.encrypt(str, key).toString();
+            } else {
+                const bytes = CryptoJS.AES.decrypt(str, key);
+                return bytes.toString(CryptoJS.enc.Utf8);
+            }
+        }
+        // xây dựng hàm mã hõa và giải mã RSA
+        function rsaCipher(str, action, key) {
+            if (action === 'encode') {
+                return CryptoJS.RSA.encrypt(str, key).toString();
+            } else {
+                const bytes = CryptoJS.RSA.decrypt(str, key);
+                return bytes.toString(CryptoJS.enc.Utf8);
+            }
+        }
+        // hàm tạo khóa RSA
+        function generateRSAKeys() {
+            const keySize = 2048; // Kích thước khóa (2048 là một kích thước phổ biến)
+            const keyPair = CryptoJS.lib.RSAKeyPair.generate(keySize);
+            return {
+                publicKey: keyPair.n.toString(),
+                privateKey: keyPair.e.toString() + ',' + keyPair.d.toString()
+            };
+        }
+        // hàm mã hóa và giải mã RSA
+        function processRSA(action) {
+            const key = generateRSAKeys();
+            const plaintext = document.getElementById("plaintext").value;
+            const result = rsaCipher(plaintext, action, key);
+
+            document.getElementById("ciphertext").value = result;
+        }
+
+        // Thêm các hàm mới
+        function generateRSAKeys() {
+            const p = generatePrime();
+            const q = generatePrime();
+            const n = p * q;
+            const phi = (p - 1) * (q - 1);
+            const e = generateE(phi);
+            const d = modInverse(e, phi);
+
+            document.getElementById('rsaPublicKey').value = `${n},${e}`;
+            document.getElementById('rsaPrivateKey').value = `${n},${d}`;
+        }
+
+        function generatePrime() {
+            const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+            return primes[Math.floor(Math.random() * primes.length)];
+        }
+
+        function generateE(phi) {
+            let e = 2;
+            while (e < phi) {
+                if (gcd(e, phi) === 1) return e;
+                e++;
+            }
+            return null;
+        }
+
+        function rsaEncrypt(message, publicKey) {
+            const [n, e] = publicKey.split(',').map(BigInt);
+            return message.split('').map(char => {
+                const m = BigInt(char.charCodeAt(0));
+                return m ** e % n;
+            }).join(',');
+        }
+
+        function rsaDecrypt(ciphertext, privateKey) {
+            const [n, d] = privateKey.split(',').map(BigInt);
+            return ciphertext.split(',').map(c => {
+                const m = BigInt(c) ** d % n;
+                return String.fromCharCode(Number(m));
+            }).join('');
+        }
+
+
+
+
+
+
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js">//thư viện CryptoJs</script>
+
+
+
+</body>
+
+</html>
